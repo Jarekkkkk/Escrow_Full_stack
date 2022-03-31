@@ -7,7 +7,7 @@ use bs58::decode;
 // ------ ------
 //     Init
 // ------ ------
-pub fn init(mut url: Url, orders: &mut impl Orders<Msg>) -> Model {
+pub fn init(url: Url, orders: &mut impl Orders<Msg>) -> Model {
     Model {
         account: RemoteData::Notasked,
         form: Form::default(),
@@ -48,7 +48,9 @@ struct FormErrors {
 //Js fetch result
 #[derive(Deserialize, Debug, PartialEq)]
 struct Account {
-    acconut: String,
+    token_acconut: String,
+    amount: String,
+    decimals: String,
     token_link: String,
 }
 
@@ -237,6 +239,18 @@ pub fn view(model: &Model, ctx: &Context) -> Node<Msg> {
             attrs! {At::Style => "text-align:center"},
             "Create Token Account"
         ],
+        if let RemoteData::Loaded(account) = &model.account {
+            div![
+                C!["container is-fullhd"],
+                attrs! {At::Style => "text-align:center"},
+                div![
+                    span![C!["icon is-small is-left"], i![C!["fas fa-key"]]],
+                    span![C!["message"], &account.token_acconut]
+                ]
+            ]
+        } else {
+            empty()
+        },
         form![
             ev(Ev::Submit, move |event| {
                 event.prevent_default();
@@ -257,7 +271,10 @@ fn view_level_nav(account: &Account) -> Node<Msg> {
         C!["level"],
         div![
             C!["level-item has-text-centered"],
-            div![p![C!["haeding"], "Term"], p![C!["title"], "SOL"]]
+            div![
+                p![C!["haeding"], "Amount"],
+                p![C!["title"], &account.amount]
+            ]
         ],
         div![
             C!["level-item has-text-centered"],
@@ -274,7 +291,10 @@ fn view_level_nav(account: &Account) -> Node<Msg> {
         ],
         div![
             C!["level-item has-text-centered"],
-            div![p![C!["haeding"], "Decimals"], p![C!["title"], "18"]]
+            div![
+                p![C!["haeding"], "Decimals"],
+                p![C!["title"], &account.decimals]
+            ]
         ],
     ]
 }

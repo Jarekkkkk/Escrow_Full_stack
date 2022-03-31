@@ -25,12 +25,7 @@ pub fn init(url: Url, orders: &mut impl Orders<Msg>) -> Model {
         base_url: url.to_base_url(),
         page: Page::init(url, orders),
 
-        token: RemoteData::Loaded(Token {
-            created_mint_address: "H2eX3gHVBjfHxesxf7szYDT52Zms8msTYAwvEndCmSY5".to_owned(),
-            supply: "H2eX3gHVBjfHxesxf7szYDT52Zms8msTYAwvEndCmSY5".to_owned(),
-            decimals: "0".to_owned(),
-            token_link: "H2eX3gHVBjfHxesxf7szYDT52Zms8msTYAwvEndCmSY5".to_owned(),
-        }),
+        token: RemoteData::Notasked,
         form: Form::default(),
     }
 }
@@ -138,7 +133,7 @@ impl<'a> Urls<'a> {
 enum Page {
     Home,
     CreateAccount(create_account::Model),
-    EditToken,
+    EditToken(edit_token::Model),
 }
 
 impl Page {
@@ -149,7 +144,9 @@ impl Page {
                 url,
                 &mut orders.proxy(Msg::CreateAccount),
             )),
-            [EDIT_TOKEN] => Self::EditToken,
+            [EDIT_TOKEN] => {
+                Self::EditToken(edit_token::init(url, &mut orders.proxy(Msg::EditToken)))
+            }
             _ => Self::Home,
         }
     }
@@ -169,7 +166,7 @@ pub enum Msg {
 
     //Page
     CreateAccount(create_account::Msg),
-    //EditToken(edit_token::Msg),
+    EditToken(edit_token::Msg),
 }
 
 pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg>) {
@@ -235,6 +232,11 @@ pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg>) {
                 create_account::update(msg, model, &mut orders.proxy(Msg::CreateAccount))
             }
         }
+        Msg::EditToken(msg) => {
+            if let Page::EditToken(model) = &mut model.page {
+                edit_token::update(msg, model, &mut orders.proxy(Msg::EditToken))
+            }
+        }
     }
 }
 
@@ -251,7 +253,9 @@ pub fn view(model: &Model, ctx: &Context) -> Node<Msg> {
             create_account::view(create_account_model, ctx).map_msg(Msg::CreateAccount)
             //saying that the view function only accept "this type of message"
         }
-        Page::EditToken => edit_token::view(),
+        Page::EditToken(edit_token_model) => {
+            edit_token::view(edit_token_model, ctx).map_msg(Msg::EditToken)
+        }
     }
 }
 fn view_content(model: &Model, ctx: &Context) -> Node<Msg> {

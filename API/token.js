@@ -11,7 +11,7 @@ import {
 
 //Some nameing rule should follow up:
 //  1. mostly address ( pubkey ) will not explicitly display
-//  2. only seed will be appended and thereby be parsed into "Keypair"
+//  2. only {seed,link} will be appended and thereby be parsed into "Keypair"
 
 // ------  ------  ------  ------  ------  ------  ------
 //    we can't destructure the 'web3'& 'spl_token'
@@ -130,6 +130,9 @@ async function create_token_account_js(
     )
     console.log(token_account_info)
 
+    let amount = token_account_info.amount
+    let decimals = token_account_info.decimals
+
     // isNative: false
 
     // mint: "sswxow1Pmqo29aMpEpXgmeBeQgAX7zXhJEq13ABLuxQ"
@@ -149,7 +152,12 @@ async function create_token_account_js(
     // uiAmountString: "0"
     let link = create_link_from_pubkey(token_account_ads)
 
-    return {acconut: token_account_ads, token_link: link}
+    return {
+      token_acconut: token_account_ads.toString(),
+      amount: amount.toString(),
+      decimals: decimals.toString(),
+      token_link: link,
+    }
     //  struct Add_Token_Account{
     //  token_account:String,
     //  token_link:String
@@ -177,7 +185,7 @@ async function mint_token_js(
       getConnection(cluster, commitment),
       tokenMint,
       TOKEN_PROGRAM_ID,
-      Keypair.fromSecretKey(parse_seed_to_Uint8Array(feePayer_seed))
+      Keypair.fromSecretKey(parse_seed_to_Uint8Array(feepayer_seed))
     )
 
     await token.mintTo(
