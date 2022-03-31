@@ -1,0 +1,8 @@
+/target
+/pkg
+/assets
+/static
+/foo.html
+/foo.json
+/cdn.txt
+/Cargo.lock
