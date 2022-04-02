@@ -99,9 +99,10 @@ impl Form {
             panic!("non-exist field")
         }
     }
+    //this is likely be enhanced by using "interior mutablity" pattern
     pub fn get_ui<'a>(&'a self, key: &str) -> (&'a str, &'a str, &'a str) {
-        let field = self.get_error_field(key);
-        let (input_color, icon, err_msg) = match field {
+        let current_error = self.get_error_field(key);
+        let (input_color, icon, err_msg) = match current_error {
             Some(err_msg) => ("is-danger", "fas fa-exclamation-triangle", err_msg.as_ref()),
             None => {
                 if self.get_field(key).is_empty() {
@@ -145,7 +146,7 @@ impl Form {
                 _ => self.form_error = FormErrors::default(),
             }
         } else {
-            self.form_error = FormErrors::default();
+            *self.get_mut_error_field(key) = None;
         }
     }
 }

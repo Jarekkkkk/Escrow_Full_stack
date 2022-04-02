@@ -279,6 +279,17 @@ extern "C" {
         owner: String,
     ) -> Result<JsValue, JsValue>;
 
+    #[wasm_bindgen(catch)]
+    async fn mint_token_js(
+        cluster: String,
+        commitment: String,
+        feepayer_seed: String,
+        token_mint: String,
+        destination: String,
+        mint_authority_seed: String,
+        amount: String,
+    ) -> Result<JsValue, JsValue>;
+
 }
 
 // ------ ------

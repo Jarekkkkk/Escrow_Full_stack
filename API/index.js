@@ -6,7 +6,11 @@ import init from '../pkg/package.js'
 //appending file type annotation is required so that module can be found
 // ------ API ------
 import {readTextFile} from './utils.js'
-import {create_mint_js, create_token_account_js} from './token.js'
+import {
+  create_mint_js,
+  create_token_account_js,
+  mint_token_js,
+} from './token.js'
 
 // ------ Const ------
 const LOCAL_NET = 'http://localhost:8899'
@@ -76,6 +80,24 @@ window.create_token_account_js = async (
     feepayer_seed,
     token_mint,
     owner
+  )
+window.mint_token_js = async (
+  cluster,
+  commitment,
+  feepayer_seed,
+  token_mint,
+  destination,
+  mint_authority_seed,
+  amount
+) =>
+  mint_token_js(
+    cluster,
+    commitment,
+    feepayer_seed,
+    token_mint,
+    destination,
+    mint_authority_seed,
+    amount
   )
 // window.mint_token_js = () => {}
 // window.freeze_account_js = () => {}

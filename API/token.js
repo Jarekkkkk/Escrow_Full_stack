@@ -172,18 +172,27 @@ async function mint_token_js(
   cluster,
   commitment,
   feepayer_seed,
-  tokenMint,
+  token_mint,
   destination,
   mint_authority_seed,
   amount
 ) {
+  console.log(
+    cluster,
+    commitment,
+    feepayer_seed,
+    token_mint,
+    destination,
+    mint_authority_seed,
+    amount
+  )
   try {
     const {Token, TOKEN_PROGRAM_ID} = spl_token
     const {Keypair} = web3
 
     const token = new Token(
       getConnection(cluster, commitment),
-      tokenMint,
+      token_mint,
       TOKEN_PROGRAM_ID,
       Keypair.fromSecretKey(parse_seed_to_Uint8Array(feepayer_seed))
     )
@@ -232,4 +241,4 @@ async function freeze_account_js(
   )
 }
 
-export {create_mint_js, create_token_account_js}
+export {create_mint_js, create_token_account_js, mint_token_js}

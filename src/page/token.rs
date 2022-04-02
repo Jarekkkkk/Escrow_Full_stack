@@ -186,7 +186,9 @@ pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg>) {
             }
         }
         Msg::CreateTokenFetch(Err(err)) => {
-            //when external API fail, catching up and displaying error message
+            //when external API fail
+            //creating our own customized Err message
+
             error!("create token fail !", err);
         }
 
