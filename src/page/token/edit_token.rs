@@ -134,7 +134,7 @@ impl MintForm {
             MINT_FORM_AMOUNT,
         ]
     }
-    pub fn get_field_ui(&self) -> Vec<(&str, &str, &str)> {
+    pub fn get_fields_ui(&self) -> Vec<(&str, &str, &str)> {
         let field_names = self.get_fields_const();
         let res = field_names.iter().map(|field| self.get_ui(field)).collect();
 
@@ -217,7 +217,7 @@ impl MintForm {
         let mut err_passed: bool = true;
 
         for field_key in fields.iter() {
-            if self.get_errors_field(field_key).is_none() {
+            if self.get_errors_field(field_key).is_some() {
                 err_passed = false;
             }
         }
@@ -328,7 +328,22 @@ pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg>) {
             }
             _ => log!("submit"),
         },
-        _ => log!("oncahgne"),
+        Msg::MintTokenJSRes(Ok(mint_res)) => {
+            if !mint_res.is_undefined() {
+                match serde_wasm_bindgen::from_value(mint_res) {
+                    Ok(mint) => {
+                        log!(&mint);
+                        model.mint = RemoteData::Loaded(mint);
+                    }
+                    Err(err) => log!("returned mint instance is unable to deserialzied"),
+                }
+            } else {
+                log!("mint_red is undefined")
+            }
+        }
+        Msg::MintTokenJSRes(Err(err)) => {}
+
+        _ => log!("unsettled Msg execution"),
     }
 }
 // ------ ------
@@ -338,7 +353,7 @@ pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg>) {
 pub fn view(model: &Model, ctx: &Context) -> Node<Msg> {
     section![
         C!["section hero is-light is-fullheight-with-navbar"],
-        attrs![At::Style => "padding-bottom: 10rem"],
+        attrs![At::Style => "padding: 0.5rem 1.5rem"],
         // Error7 Loading Message
         match &model.mint {
             RemoteData::Loading => {
@@ -355,14 +370,7 @@ pub fn view(model: &Model, ctx: &Context) -> Node<Msg> {
         view_title(&model.actions),
         //Result
         if let RemoteData::Loaded(mint) = &model.mint {
-            div![
-                C!["container is-fullhd"],
-                attrs! {At::Style => "text-align:center"},
-                div![
-                    span![C!["icon is-small is-left"], i![C!["fas fa-key"]]],
-                    span![C!["message"], &mint.deposited_address]
-                ]
-            ]
+            view_result(&mint.deposited_address)
         } else {
             empty()
         },
@@ -392,6 +400,11 @@ pub fn view_loading_message(msg: &str) -> Node<Msg> {
     div![div![C!["message"], msg]]
 }
 fn view_level_nav(mint: &Mint) -> Node<Msg> {
+    // ------ returned instance ------
+    // deposited_address: String,
+    // amount: String,
+    // decimals: String,
+    // token_link: String,
     nav![
         C!["level"],
         div![
@@ -462,8 +475,23 @@ fn view_input(
 // ------ ------
 //     Forms
 // ------ ------
+
+fn view_result(res: &str) -> Node<Msg> {
+    div![
+        C!["container is-fullhd"],
+        attrs! {At::Style => "text-align:center"},
+        div![
+            span![C!["icon is-small is-left"], i![C!["fas fa-key"]]],
+            span![C!["message"], res]
+        ]
+    ]
+}
+
+// ------ ------
+//     Forms
+// ------ ------
 fn view_mint_form(mint_form: &MintForm, ctx: &Context) -> Node<Msg> {
-    let ui = mint_form.get_field_ui();
+    let ui = mint_form.get_fields_ui();
     //  inputs{
     // fee_payer_seed: String,
     // token_mint: String,

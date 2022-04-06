@@ -290,6 +290,18 @@ extern "C" {
         amount: String,
     ) -> Result<JsValue, JsValue>;
 
+    #[wasm_bindgen(catch)]
+    async fn escrow_maker_js(
+        cluster: String,
+        commitment: String,
+        fee_payer_seed: String,
+        token_to_send: String,
+        token_to_receive: String,
+        amount_to_send: String,
+        amount_to_receive: String,
+        escrow_program_id: String,
+    ) -> Result<JsValue, JsValue>;
+
 }
 
 // ------ ------
@@ -380,14 +392,14 @@ fn view_navbar_start(base_url: &Url) -> Node<Msg> {
                         //initialize base_url of children page
                         At::Href => Urls::new(base_url).token();
                     },
-                    "Create Token"
+                    "Create Mint"
                 ],
                 a![
                     C!["navbar-item"],
                     attrs! {
                         At::Href => Urls::new(base_url).token_pages().edit_token();
                     },
-                    "Edit Token"
+                    "Mint Actions"
                 ],
                 hr![C!["navbar-divider"]],
                 a![
@@ -395,9 +407,9 @@ fn view_navbar_start(base_url: &Url) -> Node<Msg> {
                     attrs! {
                         At::Href => Urls::new(base_url).token_pages().create_account();
                     },
-                    "Create Account"
+                    "Create Token Account"
                 ],
-                a![C!["navbar-item"], "Edit Account"],
+                a![C!["navbar-item"], "Edit Token Account"],
             ]
         ]
     ]
@@ -446,7 +458,7 @@ fn view_content(model: &Model) -> Node<Msg> {
         //when lifting the children's view up to the Root view function, we had to mapping the Msg type from
         // "Msg::Escrow" to "Msg::Root"
         //Simply saying: Node<Msg<Child>> ->  Node<Msg>
-        Page::Escrow(escrow_model) => page::escrow::view(escrow_model)
+        Page::Escrow(escrow_model) => page::escrow::view(escrow_model, &model.ctx)
             .map_msg(Msg::Escrow /*this trigger update(root ) above */),
         Page::Token(token_model) => page::token::view(token_model, &model.ctx).map_msg(Msg::Token),
         Page::NotFound => page::notfound::view(),

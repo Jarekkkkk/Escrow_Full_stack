@@ -32,19 +32,18 @@ async function escrow_maker_js(
   amount_to_receive,
   escrow_program_id
 ) {
+  console.log('escrow maker js ')
   try {
-    let cluster = 'http://localhost:8899'
-    let commitment = 'confirmed'
-    let fee_payer_seed =
-      '137,130,83,5,93,236,161,23,186,182,176,60,55,116,11,2,172,220,167,87,71,180,59,201,99,75,48,81,180,30,5,199,83,161,137,43,210,109,163,151,33,160,186,85,185,16,173,64,254,52,88,20,79,22,155,31,123,211,66,136,17,61,247,181'
-    let token_to_send = 'EEiTLXtocBBVS2cfZ91wp4cqMUFSvTRJD6gmPtJwuDMw'
-    let token_to_receive =
-      'EEiTLXtocBBVS2cfZ91wp4cqMUFSvTRJD6gmPtJwuDMw'
-    let amount_to_send = '12'
-    let amount_to_receive = '12'
-    let escrow_program_id =
-      'A8bkizaAC3EePjYJjVSzfsUpKqTGREpyb89eT1FJyrzn'
-
+    console.log(
+      cluster,
+      commitment,
+      fee_payer_seed,
+      token_to_send,
+      token_to_receive,
+      amount_to_send,
+      amount_to_receive,
+      escrow_program_id
+    )
     // Declaration
     const connection = get_connection(cluster, commitment)
     const token_to_send_pubkey = new PublicKey(token_to_send)
@@ -56,7 +55,14 @@ async function escrow_maker_js(
     // 3. transferXTokensToTempAccIx,
     // 4. createEscrowAccountIx,
     // 5. initEscrowIx
-
+    const token_to_send_acc = await getAccount(
+      connection,
+      token_to_send_pubkey
+    )
+    const token_to_receive_acc = await getAccount(
+      connection,
+      token_to_receive_pubkey
+    )
     if (
       token_to_send_acc.mint.toBase58() ==
       token_to_receive_acc.mint.toBase58()
@@ -129,7 +135,7 @@ async function escrow_maker_js(
     ])
 
     let init_escrow_writing_ix = SystemProgram.createAccount({
-      fromPubkey: maker.publickey,
+      fromPubkey: maker,
       newAccountPubkey: escrow_writing.publicKey,
       lamports: await connection.getMinimumBalanceForRentExemption(
         AccountLayout.span,
@@ -143,14 +149,12 @@ async function escrow_maker_js(
     //      5. init Escrow Program
     // ------  ------ ------ ------ ------
 
-    const amount_b = new BN(
-      parseInt(amount_to_receive, 10).toArray(
-        'le',
-        8
-      ) /**instruction be stored in [u8] */
-    )
+    const amount_b = new BN(parseInt(amount_to_receive, 10)).toArray(
+      'le',
+      8
+    ) /**instruction be stored in [u8] */
     console.log(amount_b)
-    let tagged_data = Buffer.from(0, Uint8Array.of(0, ...amount_b))
+    let tagged_data = Buffer.from(Uint8Array.of(0, ...amount_b))
     console.log(tagged_data)
 
     // accounts:{
@@ -191,11 +195,11 @@ async function escrow_maker_js(
       init_escrow_ix
     )
 
-    await connection.sendTransaction(tx, [
-      maker,
-      empty,
-      escrow_writing,
-    ])
+    // await connection.sendTransaction(tx, [
+    //   maker,
+    //   empty,
+    //   escrow_writing,
+    // ])
   } catch (error) {
     console.log('escrow maker error')
     console.log(error)
@@ -211,3 +215,5 @@ async function escrow_taker_js(
   amount_to_receive,
   escrow_program_id
 ) {}
+
+module.exports = {escrow_maker_js}

@@ -6,3 +6,6 @@
 /foo.json
 /cdn.txt
 /Cargo.lock
+/package.json
+/node_modules
+/bundle.js
