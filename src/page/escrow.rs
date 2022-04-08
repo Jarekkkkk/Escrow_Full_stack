@@ -1,7 +1,9 @@
 #![allow(clippy::wildcard_imports)]
 #![allow(dead_code, unused_variables)]
 
-use crate::{escrow_maker_js, Context, ESCROW};
+use core::panic;
+
+use crate::{escrow_maker_js, escrow_taker_js, Context};
 use bs58::decode;
 use seed::{prelude::*, *};
 use serde::Deserialize;
@@ -15,13 +17,14 @@ use serde::Deserialize;
 // kinds of like alias of "swap" functionality
 
 // program_id
-const PROGRAM_ID: &str = "A8bkizaAC3EePjYJjVSzfsUpKqTGREpyb89eT1FJyrzn";
+const PROGRAM_ID: &str = "2f81caFNCYHQgRepoq9oNLnbjt7rsrU8pfC8fGRtQZzi";
 
 pub fn init(url: Url, orders: &mut impl Orders<Msg>) -> Model {
-    let escrow = Escrow {
+    let res = EscrowResponse {
         escrow_account: "A8bkizaAC3EePjYJjVSzfsUpKqTGREpyb89eT1FJyrzn".to_string(),
-        maker: "A8bkizaAC3EePjYJjVSzfsUpKqTGREpyb89eT1FJyrzn".to_string(),
-        temp_token_account: "A8bkizaAC3EePjYJjVSzfsUpKqTGREpyb89eT1FJyrzn".to_string(),
+        signer: "A8bkizaAC3EePjYJjVSzfsUpKqTGREpyb89eT1FJyrzn".to_string(),
+        token_to_send: "A8bkizaAC3EePjYJjVSzfsUpKqTGREpyb89eT1FJyrzn".to_string(),
+        token_to_receive: "".to_string(),
         amount_to_send: "100".to_string(),
         amount_to_receive: "90".to_string(),
         token_link: "http://localhost:8000/escrow".to_string(),
@@ -29,21 +32,24 @@ pub fn init(url: Url, orders: &mut impl Orders<Msg>) -> Model {
     Model {
         form: Form::default(),
 
-        maker: RemoteData::Loaded(escrow.clone()),
-        taker: RemoteData::Loaded(escrow),
+        maker: RemoteData::Loaded(res.clone()),
+        taker: RemoteData::Notasked,
     }
 }
 
 // ------ ------
 //     Model
 // ------ ------
+
+#[derive(Debug)]
+
 pub struct Model {
     //form
     form: Form,
     // distinguish action by checking token
     //result
-    maker: RemoteData<Escrow>,
-    taker: RemoteData<Escrow>,
+    maker: RemoteData<EscrowResponse>,
+    taker: RemoteData<EscrowResponse>,
 }
 
 // ------ ------ ------
@@ -242,10 +248,9 @@ impl Form {
     }
 
     fn check_amount(&mut self, key: &str) {
-        let parsed = self.get_mut_field(key).trim().parse::<u8>();
+        let parsed = self.get_mut_field(key).trim().parse::<u64>();
 
         if let Ok(amount) = parsed {
-            log!(amount);
             if amount > 0 {
                 *self.get_mut_error_field(key) = None;
             } else {
@@ -291,7 +296,7 @@ where
     }
 }
 
-#[derive(PartialEq)]
+#[derive(PartialEq, Debug)]
 enum RemoteData<T> {
     Notasked,
     Loading,
@@ -300,29 +305,34 @@ enum RemoteData<T> {
 
 // ------ ------ ------
 //     Model_Response
-//
 // ------ ------ ------
 
 #[derive(Debug, PartialEq, PartialOrd, Clone, Deserialize)]
-struct Escrow {
+struct EscrowResponse {
     escrow_account: String,
-    maker: String,
-    temp_token_account: String,
+    signer: String,
+    token_to_send: String,
+    token_to_receive: String,
     amount_to_send: String,
     amount_to_receive: String,
     token_link: String,
 }
+
 // ------ ------
 //     Update
 // ------ ------
 
 pub enum Msg {
     OnChange(String, String),
-    OnSubmit(String, String),
+    MakerOnSubmit(String, String),
+    TakerOnSubmit(String, String),
 
     //external API
     MakerJSRes(Result<JsValue, JsValue>),
     TakerJSRes(Result<JsValue, JsValue>),
+
+    //Toggle Actions
+    ToggleAction,
 }
 
 pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg>) {
@@ -330,14 +340,11 @@ pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg>) {
         Msg::OnChange(key, data) => {
             *model.form.get_mut_field(&key) = data;
             model.form.check_input(&key);
-            log!(model.form);
         }
-        Msg::OnSubmit(cluster, commitment) => {
-            log!(&model.form);
-            if (model.maker != RemoteData::Notasked
-                || model.maker != RemoteData::Loading
-                || model.taker != RemoteData::Notasked
-                || model.taker != RemoteData::Loading)
+        Msg::MakerOnSubmit(cluster, commitment) => {
+            log!(&model);
+
+            if model.maker != RemoteData::Loading
                 && model.form.check_all_errors()
                 && model.form != Form::default()
             {
@@ -346,10 +353,11 @@ pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg>) {
                 let fee_payer_seed = model.form.fee_payer_seed.to_owned();
                 let token_to_send = model.form.token_send.to_owned();
                 let token_to_receive = model.form.token_receive.to_owned();
-                let amount_to_send_or_escrow_account =
-                    match &model.form.amount_to_send_or_escrow_account {
-                        Action::Maker(input) => input.to_string(),
-                        Action::Taker(input) => input.to_owned(),
+                let amount_to_send =
+                    if let Action::Maker(input) = &model.form.amount_to_send_or_escrow_account {
+                        input.to_owned()
+                    } else {
+                        panic!("maker input should not fail")
                     };
                 let amount_to_receive = model.form.amount_to_receive.to_owned();
 
@@ -361,7 +369,7 @@ pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg>) {
                             fee_payer_seed,
                             token_to_send,
                             token_to_receive,
-                            amount_to_send_or_escrow_account,
+                            amount_to_send, //here stands for 'amount to send'
                             amount_to_receive,
                             PROGRAM_ID.to_string(),
                         )
@@ -370,12 +378,49 @@ pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg>) {
                 });
             }
         }
+        Msg::TakerOnSubmit(cluster, commitment) => {
+            log!(&model.form);
+            if model.taker != RemoteData::Loading
+                && model.form.check_all_errors()
+                && model.form != Form::default()
+            {
+                let cluster = cluster.to_owned();
+                let commitment = commitment.to_owned();
+                let fee_payer_seed = model.form.fee_payer_seed.to_owned();
+                let token_to_send = model.form.token_send.to_owned();
+                let token_to_receive = model.form.token_receive.to_owned();
+                let escrow_account =
+                    if let Action::Taker(input) = &model.form.amount_to_send_or_escrow_account {
+                        input.to_owned()
+                    } else {
+                        panic!("input should not be null")
+                    };
+                let amount_to_receive = model.form.amount_to_receive.to_owned();
+
+                orders.skip().perform_cmd(async {
+                    Msg::TakerJSRes(unsafe {
+                        escrow_taker_js(
+                            cluster,
+                            commitment,
+                            fee_payer_seed,
+                            token_to_send,
+                            token_to_receive,
+                            escrow_account, //here becomes 'escrow account'
+                            amount_to_receive,
+                            PROGRAM_ID.to_string(),
+                        )
+                        .await
+                    })
+                });
+            }
+        }
+
         Msg::MakerJSRes(Ok(maker_res)) => {
             if !maker_res.is_undefined() {
                 match serde_wasm_bindgen::from_value(maker_res) {
-                    Ok(escrow) => {
-                        log!(escrow);
-                        model.maker = RemoteData::Loaded(escrow)
+                    Ok(res) => {
+                        log!(res);
+                        model.maker = RemoteData::Loaded(res)
                     }
                     Err(_) => error!("result can not be deserizlied"),
                 }
@@ -383,12 +428,37 @@ pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg>) {
                 log!("escrow_maker_js response undefined")
             }
         }
-        Msg::MakerJSRes(Err(maker_err)) => {
+        Msg::MakerJSRes(Err(_)) => {
             error!("escrow_maker_js fail")
         }
-        Msg::TakerJSRes(Ok(taker)) => {}
-        Msg::TakerJSRes(Err(taker_err)) => {
+        Msg::TakerJSRes(Ok(taker_res)) => {
+            if !taker_res.is_undefined() {
+                match serde_wasm_bindgen::from_value(taker_res) {
+                    Ok(res) => {
+                        log!(res);
+                        model.taker = RemoteData::Loaded(res)
+                    }
+                    Err(_) => error!("result can not be deserizlied"),
+                }
+            } else {
+                log!("escrow_taker_js response undefined")
+            }
+        }
+        Msg::TakerJSRes(Err(_)) => {
             error!("escrow_taker_js fail")
+        }
+        Msg::ToggleAction => {
+            model.form.amount_to_send_or_escrow_account =
+                match &mut model.form.amount_to_send_or_escrow_account {
+                    Action::Maker(input) => {
+                        *input = "".to_string();
+                        Action::Taker("".to_string())
+                    }
+                    Action::Taker(input) => {
+                        *input = "".to_string();
+                        Action::Maker("".to_string())
+                    }
+                }
         }
     }
 }
@@ -409,15 +479,19 @@ pub fn view(model: &Model, ctx: &Context) -> Node<Msg> {
             RemoteData::Notasked => {
                 view_loading_message("Escrow Maker")
             }
-            RemoteData::Loaded(maker) => {
-                view_level_nav(maker)
+            RemoteData::Loaded(res) => {
+                view_level_nav(res)
             }
         },
         //Title
-        if let Action::Maker(_) = model.form.amount_to_send_or_escrow_account {
-            view_title("Escrow Taker")
-        } else {
-            empty()
+        match model.form.amount_to_send_or_escrow_account {
+            Action::Maker(_) => {
+                view_title("Escrow Maker")
+            }
+            Action::Taker(_) => {
+                view_title("Escrow Taker")
+            }
+            _ => empty(),
         },
         //Result
         if let RemoteData::Loaded(maker_res) = &model.maker {
@@ -430,7 +504,7 @@ pub fn view(model: &Model, ctx: &Context) -> Node<Msg> {
     ]
 }
 
-fn view_level_nav(maker: &Escrow) -> Node<Msg> {
+fn view_level_nav(res: &EscrowResponse) -> Node<Msg> {
     // ------ returned instance ------
     // deposited_address: String,
     // amount: String,
@@ -442,7 +516,7 @@ fn view_level_nav(maker: &Escrow) -> Node<Msg> {
             C!["level-item has-text-centered"],
             div![
                 p![C!["haeding"], "Sent Amount"],
-                p![C!["title"], &maker.amount_to_send]
+                p![C!["title"], &res.amount_to_send]
             ]
         ],
         div![
@@ -452,8 +526,8 @@ fn view_level_nav(maker: &Escrow) -> Node<Msg> {
                 p![
                     C!["title is-7"],
                     a![
-                        attrs! {At::Href => maker.token_link,At::Target => "_blank"},
-                        &maker.token_link
+                        attrs! {At::Href => res.token_link,At::Target => "_blank"},
+                        &res.token_link
                     ]
                 ]
             ]
@@ -462,7 +536,7 @@ fn view_level_nav(maker: &Escrow) -> Node<Msg> {
             C!["level-item has-text-centered"],
             div![
                 p![C!["haeding"], "Received Amount"],
-                p![C!["title"], &maker.amount_to_receive]
+                p![C!["title"], &res.amount_to_receive]
             ]
         ],
     ]
@@ -567,7 +641,26 @@ fn view_form(form: &Form, ctx: &Context) -> Node<Msg> {
             ui[4].2,
             &form.amount_to_receive
         ),
-        view_button(ctx),
+        div![
+            C!["field is-grouped"],
+            attrs! {At::Style => "text-align:center"},
+            div![
+                C!["control"],
+                button![
+                    C!["button is-link"],
+                    ev(Ev::Click, move |_| { Msg::ToggleAction }),
+                    "Change Action "
+                ]
+            ],
+            match form.amount_to_send_or_escrow_account {
+                Action::Maker(_) => {
+                    view_maker_button(ctx)
+                }
+                Action::Taker(_) => {
+                    view_taker_button(ctx)
+                }
+            }
+        ],
     ]
 }
 // match action -> match form field -> input
@@ -598,7 +691,7 @@ fn view_input(
     ]
 }
 
-fn view_button(ctx: &Context) -> Node<Msg> {
+fn view_maker_button(ctx: &Context) -> Node<Msg> {
     let net: String;
     let commit: String;
     if let Some(cluster) = ctx.cluster.as_ref() {
@@ -619,9 +712,32 @@ fn view_button(ctx: &Context) -> Node<Msg> {
             C!["control"],
             button![
                 C!["button is-link"],
-                ev(Ev::Click, move |_| { Msg::OnSubmit(net, commit) }),
-                "Build Escrow"
+                ev(Ev::Click, move |_| { Msg::MakerOnSubmit(net, commit) }),
+                "Make the Escrow"
             ]
+        ]
+    ]
+}
+fn view_taker_button(ctx: &Context) -> Node<Msg> {
+    let net: String;
+    let commit: String;
+    if let Some(cluster) = ctx.cluster.as_ref() {
+        net = cluster.to_owned();
+    } else {
+        net = "".to_string();
+    }
+    if let Some(commitment) = ctx.commitment.as_ref() {
+        commit = commitment.to_owned();
+    } else {
+        commit = "".to_string()
+    }
+
+    div![
+        C!["control"],
+        button![
+            C!["button is-link"],
+            ev(Ev::Click, move |_| { Msg::TakerOnSubmit(net, commit) }),
+            "Take the Escrow "
         ]
     ]
 }

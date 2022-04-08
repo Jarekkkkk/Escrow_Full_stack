@@ -302,6 +302,18 @@ extern "C" {
         escrow_program_id: String,
     ) -> Result<JsValue, JsValue>;
 
+    #[wasm_bindgen(catch)]
+    async fn escrow_taker_js(
+        cluster: String,
+        commitment: String,
+        fee_payer_seed: String,
+        token_to_send: String,
+        token_to_receive: String,
+        escrow_account: String,
+        amount_to_receive: String,
+        escrow_program_id: String,
+    ) -> Result<JsValue, JsValue>;
+
 }
 
 // ------ ------

@@ -1,6 +1,10 @@
 //accept only read-only methods
 
-const {Connection, clusterApiUrl} = require('@solana/web3.js')
+const {
+  Connection,
+  clusterApiUrl,
+  PublicKey,
+} = require('@solana/web3.js')
 
 const LOCAL_NET = 'http://localhost:8899'
 
@@ -55,9 +59,37 @@ function get_connection(cluster, commitment) {
   return connection
 }
 
+//decode the struct data by the given buffer-layout
+//getParsedAccountInfo(&connection) only valid when fetching some fundamental data like: owner/ lamports/ data
+function subscribe_to_account(
+  cluster,
+  commitment,
+  account_pubkey,
+  callback
+) {
+  const connection = get_connection(cluster, commitment)
+
+  let time = 0
+
+  const id = setInterval(async () => {
+    time++
+    const data = (
+      await connection.getAccountInfo(
+        new PublicKey(account_pubkey),
+        commitment
+      )
+    ).data
+
+    callback(data, time)
+  }, 1000)
+
+  return () => clearInterval(id)
+}
+
 module.exports = {
   readTextFile,
   get_connection,
   create_link_from_pubkey,
   parse_seed_to_Uint8Array,
+  subscribe_to_account,
 }

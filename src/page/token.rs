@@ -18,8 +18,6 @@ mod edit_token;
 // ------ ------
 
 pub fn init(url: Url, orders: &mut impl Orders<Msg>) -> Model {
-    log!(&url);
-
     Model {
         errors: Vec::new(),
         base_url: url.to_base_url(),

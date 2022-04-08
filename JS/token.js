@@ -103,6 +103,7 @@ async function create_token_account_js(
       owner_pubkey
     )
 
+    console.log(token_acc)
     const token_acc_info = await getAccount(
       connection,
       token_acc.address

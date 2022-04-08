@@ -7,7 +7,7 @@ const {
   mint_token_js,
 } = require('./token')
 //Escrow
-const {escrow_maker_js} = require('./escrow.js')
+const {escrow_maker_js, escrow_taker_js} = require('./escrow.js')
 
 const {Connection, Keypair} = require('@solana/web3.js')
 
@@ -37,7 +37,6 @@ window.create_mint_js = async (
     freeze_authority_address,
     token_decimals
   )
-
 window.create_token_account_js = async (
   cluster,
   commitment,
@@ -92,6 +91,27 @@ window.escrow_maker_js = async (
     token_to_send,
     token_to_receive,
     amount_to_send,
+    amount_to_receive,
+    escrow_program_id
+  )
+}
+window.escrow_taker_js = async (
+  cluster,
+  commitment,
+  fee_payer_seed,
+  token_to_send,
+  token_to_receive,
+  escrow_account,
+  amount_to_receive,
+  escrow_program_id
+) => {
+  escrow_taker_js(
+    cluster,
+    commitment,
+    fee_payer_seed,
+    token_to_send,
+    token_to_receive,
+    escrow_account,
     amount_to_receive,
     escrow_program_id
   )
